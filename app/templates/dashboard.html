@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cogniviti – Claims Review Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 font-sans antialiased">
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <header class="flex items-center justify-between mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Cogniviti</h1>
+                <p class="text-sm text-gray-500">Claims Fraud, Waste & Abuse Anomaly Detection & Explanation</p>
+            </div>
+            <div class="flex items-center gap-3">
+                <span id="summary" class="text-sm text-gray-600"></span>
+                <button
+                    id="generateBtn"
+                    onclick="generateBatch()"
+                    class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition"
+                >
+                    Generate New Batch
+                </button>
+            </div>
+        </header>
+
+        <div id="loading" class="hidden text-center py-20">
+            <p class="text-gray-500 text-lg">Loading claims...</p>
+        </div>
+
+        <div id="error" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4"></div>
+
+        <div id="dashboardContent">
+            <div class="flex items-center justify-between mb-3">
+                <p id="filterSummary" class="text-sm text-gray-500 hidden"></p>
+                <button
+                    id="clearFiltersBtn"
+                    onclick="clearFilters()"
+                    class="hidden text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                    Clear filters
+                </button>
+            </div>
+            <div class="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-200">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">ID</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Provider</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Specialty</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Region</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CPT</th>
+                            <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-16"></th>
+                        </tr>
+                        <tr class="border-t border-gray-200">
+                            <th class="px-2 py-2">
+                                <input type="text" id="filter-id" placeholder="ID" oninput="applyFilters()"
+                                    class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            </th>
+                            <th class="px-2 py-2">
+                                <input type="text" id="filter-provider" placeholder="Filter..." oninput="applyFilters()"
+                                    class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            </th>
+                            <th class="px-2 py-2">
+                                <input type="text" id="filter-specialty" placeholder="Filter..." oninput="applyFilters()"
+                                    class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            </th>
+                            <th class="px-2 py-2">
+                                <input type="text" id="filter-region" placeholder="Filter..." oninput="applyFilters()"
+                                    class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            </th>
+                            <th class="px-2 py-2">
+                                <input type="text" id="filter-cpt" placeholder="Filter..." oninput="applyFilters()"
+                                    class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            </th>
+                            <th class="px-2 py-2">
+                                <input type="text" id="filter-amount" placeholder="Min..." oninput="applyFilters()"
+                                    class="w-full px-2 py-1 text-xs border border-gray-300 rounded text-right focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                            </th>
+                            <th class="px-2 py-2">
+                                <select id="filter-status" onchange="applyFilters()"
+                                    class="w-full px-2 py-1 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">All</option>
+                                    <option value="flagged">Flagged</option>
+                                    <option value="clean">Clean</option>
+                                </select>
+                            </th>
+                            <th class="px-2 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="claimsTableBody" class="divide-y divide-gray-100"></tbody>
+                </table>
+            </div>
+            <p id="emptyState" class="hidden text-center text-gray-400 py-20">No claims yet. Click "Generate New Batch" to start.</p>
+            <p id="noResultsState" class="hidden text-center text-gray-400 py-20">No claims match the current filters.</p>
+        </div>
+    </div>
+
+    <script>
+        let claims = [];
+
+        function isClaimFlagged(claim) {
+            return claim.anomaly_flags && claim.anomaly_flags.some(f => f.is_flagged);
+        }
+
+        function getFilterValues() {
+            return {
+                id: document.getElementById('filter-id').value.trim().toLowerCase(),
+                provider: document.getElementById('filter-provider').value.trim().toLowerCase(),
+                specialty: document.getElementById('filter-specialty').value.trim().toLowerCase(),
+                region: document.getElementById('filter-region').value.trim().toLowerCase(),
+                cpt: document.getElementById('filter-cpt').value.trim().toLowerCase(),
+                amount: document.getElementById('filter-amount').value.trim(),
+                status: document.getElementById('filter-status').value,
+            };
+        }
+
+        function hasActiveFilters(filters) {
+            return Object.values(filters).some(v => v !== '');
+        }
+
+        function filterClaims(allClaims) {
+            const f = getFilterValues();
+            return allClaims.filter(claim => {
+                if (f.id && !String(claim.id).includes(f.id)) return false;
+                if (f.provider && !claim.provider_id.toLowerCase().includes(f.provider)) return false;
+                if (f.specialty && !claim.provider_specialty.toLowerCase().includes(f.specialty)) return false;
+                if (f.region && !claim.region.toLowerCase().includes(f.region)) return false;
+                if (f.cpt && !claim.cpt_code.toLowerCase().includes(f.cpt)) return false;
+                if (f.amount) {
+                    const minAmount = parseFloat(f.amount.replace(/[$,]/g, ''));
+                    if (!isNaN(minAmount) && claim.billed_amount < minAmount) return false;
+                }
+                if (f.status === 'flagged' && !isClaimFlagged(claim)) return false;
+                if (f.status === 'clean' && isClaimFlagged(claim)) return false;
+                return true;
+            });
+        }
+
+        function applyFilters() {
+            renderClaims();
+        }
+
+        function clearFilters() {
+            document.getElementById('filter-id').value = '';
+            document.getElementById('filter-provider').value = '';
+            document.getElementById('filter-specialty').value = '';
+            document.getElementById('filter-region').value = '';
+            document.getElementById('filter-cpt').value = '';
+            document.getElementById('filter-amount').value = '';
+            document.getElementById('filter-status').value = '';
+            renderClaims();
+        }
+
+        async function fetchClaims() {
+            try {
+                const res = await fetch('/claims');
+                claims = await res.json();
+                renderClaims();
+            } catch (err) {
+                showError('Failed to load claims: ' + err.message);
+            }
+        }
+
+        function renderClaims() {
+            const tbody = document.getElementById('claimsTableBody');
+            const empty = document.getElementById('emptyState');
+            const noResults = document.getElementById('noResultsState');
+            const filters = getFilterValues();
+            const filtersActive = hasActiveFilters(filters);
+
+            document.getElementById('clearFiltersBtn').classList.toggle('hidden', !filtersActive);
+
+            if (!claims || claims.length === 0) {
+                tbody.innerHTML = '';
+                empty.classList.remove('hidden');
+                noResults.classList.add('hidden');
+                document.getElementById('filterSummary').classList.add('hidden');
+                document.getElementById('summary').textContent = '';
+                return;
+            }
+
+            empty.classList.add('hidden');
+
+            const filtered = filterClaims(claims);
+            const flaggedCount = filtered.filter(isClaimFlagged).length;
+            const totalFlagged = claims.filter(isClaimFlagged).length;
+
+            document.getElementById('summary').textContent =
+                `${claims.length} claims · ${totalFlagged} flagged`;
+
+            const filterSummary = document.getElementById('filterSummary');
+            if (filtersActive) {
+                filterSummary.textContent = `Showing ${filtered.length} of ${claims.length} claims · ${flaggedCount} flagged`;
+                filterSummary.classList.remove('hidden');
+            } else {
+                filterSummary.classList.add('hidden');
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '';
+                noResults.classList.remove('hidden');
+                return;
+            }
+
+            noResults.classList.add('hidden');
+
+            tbody.innerHTML = filtered.map(claim => {
+                const isFlagged = isClaimFlagged(claim);
+                const badgeClass = isFlagged ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700';
+                const badgeText = isFlagged ? 'Flagged' : 'Clean';
+                return `
+                    <tr class="hover:bg-gray-50 cursor-pointer" onclick="toggleRow(${claim.id})">
+                        <td class="px-4 py-3 text-sm font-mono text-gray-500">${claim.id}</td>
+                        <td class="px-4 py-3 text-sm text-gray-900">${claim.provider_id}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">${claim.provider_specialty}</td>
+                        <td class="px-4 py-3 text-sm text-gray-600">${claim.region}</td>
+                        <td class="px-4 py-3 text-sm font-mono text-gray-600">${claim.cpt_code}</td>
+                        <td class="px-4 py-3 text-sm text-right font-mono text-gray-900">$${claim.billed_amount.toFixed(2)}</td>
+                        <td class="px-4 py-3 text-center">
+                            <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full ${badgeClass}">${badgeText}</span>
+                        </td>
+                        <td class="px-4 py-3 text-center text-gray-400 text-sm" id="arrow-${claim.id}">&#9654;</td>
+                    </tr>
+                    <tr id="detail-${claim.id}" class="hidden">
+                        <td colspan="8" class="px-6 py-4 bg-gray-50 border-b border-gray-100">
+                            <div class="text-sm space-y-3">
+                                <div class="grid grid-cols-3 gap-4">
+                                    <div>
+                                        <span class="font-medium text-gray-500">ICD-10:</span>
+                                        <span class="ml-1 text-gray-800">${claim.icd10_code}</span>
+                                    </div>
+                                    <div>
+                                        <span class="font-medium text-gray-500">Units:</span>
+                                        <span class="ml-1 text-gray-800">${claim.units}</span>
+                                    </div>
+                                    <div>
+                                        <span class="font-medium text-gray-500">Patient:</span>
+                                        <span class="ml-1 text-gray-800">${claim.patient_id}</span>
+                                    </div>
+                                </div>
+                                ${claim.anomaly_flags && claim.anomaly_flags.length > 0 ? `
+                                    <div class="border-t border-gray-200 pt-3">
+                                        <p class="font-medium text-gray-700 mb-2">Detection Results</p>
+                                        ${claim.anomaly_flags.map(flag => `
+                                            <div class="mb-2 p-3 rounded-lg ${flag.is_flagged ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}">
+                                                <div class="flex items-center gap-2 mb-1">
+                                                    <span class="text-xs font-mono font-medium ${flag.is_flagged ? 'text-red-600' : 'text-green-600'}">${flag.method}</span>
+                                                    <span class="text-xs text-gray-400">score: ${flag.score.toFixed(3)}</span>
+                                                    <span class="text-xs px-1.5 py-0.5 rounded ${flag.is_flagged ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'}">${flag.is_flagged ? 'FLAGGED' : 'OK'}</span>
+                                                </div>
+                                                ${flag.explanation_text ? `
+                                                    <div class="mt-2 p-2 bg-white rounded border border-gray-100">
+                                                        <p class="text-xs text-gray-600">${flag.explanation_text}</p>
+                                                    </div>
+                                                ` : ''}
+                                                ${flag.is_flagged && !flag.explanation_text ? `
+                                                    <button onclick="loadExplanation(${claim.id}, event)" class="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium">
+                                                        &#8594; Generate Explanation
+                                                    </button>
+                                                    <div id="explanation-${claim.id}" class="mt-2"></div>
+                                                ` : ''}
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function toggleRow(claimId) {
+            const detail = document.getElementById(`detail-${claimId}`);
+            const arrow = document.getElementById(`arrow-${claimId}`);
+            const isHidden = detail.classList.contains('hidden');
+            detail.classList.toggle('hidden');
+            arrow.innerHTML = isHidden ? '&#9660;' : '&#9654;';
+        }
+
+        async function loadExplanation(claimId, event) {
+            if (event) event.stopPropagation();
+            const container = document.getElementById(`explanation-${claimId}`);
+            container.innerHTML = '<p class="text-xs text-gray-400">Generating explanation...</p>';
+            try {
+                const res = await fetch(`/claims/${claimId}/explanation`);
+                const data = await res.json();
+                container.innerHTML = `
+                    <div class="p-2 bg-white rounded border border-gray-100">
+                        <p class="text-xs text-gray-600">${data.explanation_text}</p>
+                        ${data.cited_policy ? `
+                            <div class="mt-1 text-xs text-gray-400">
+                                <span class="font-medium">Cited Policy:</span> ${data.cited_policy.source_citation}
+                            </div>
+                        ` : ''}
+                        <div class="mt-1 text-xs font-medium text-blue-600">Action: ${data.recommended_action || 'Pend for Review'}</div>
+                    </div>
+                `;
+            } catch (err) {
+                container.innerHTML = `<p class="text-xs text-red-500">Error: ${err.message}</p>`;
+            }
+        }
+
+        async function generateBatch() {
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+            try {
+                const res = await fetch('/claims/generate?batch_size=100&anomaly_rate=0.1&seed=42', { method: 'POST' });
+                const data = await res.json();
+                await fetchClaims();
+            } catch (err) {
+                showError('Failed to generate batch: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generate New Batch';
+            }
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('error');
+            el.textContent = msg;
+            el.classList.remove('hidden');
+            setTimeout(() => el.classList.add('hidden'), 5000);
+        }
+
+        fetchClaims();
+    </script>
+</body>
+</html>
