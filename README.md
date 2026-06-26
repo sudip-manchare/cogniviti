@@ -1,6 +1,17 @@
-# Cogniviti — Claims FWA Anomaly Detection & Explanation POC
+# Intern Submission — Cogniviti
 
-Hybrid ML + GenAI pipeline for healthcare claims fraud, waste, and abuse detection. Built for Cotiviti Intern Assessment (Clinical Decision Making and Pattern Recognition in Health Care).
+**Topic:** Clinical Decision Making and Pattern Recognition in Health Care: Chain Reasoning, Agentic Generative AI, Classification, Prediction, Inference, Clustering, & Time-Series Anomaly Detection for Treatment, Payment, & Operations (TPO)
+
+Hybrid ML + GenAI pipeline for healthcare claims fraud, waste, and abuse detection — a hackathon POC demonstrating classification, anomaly detection, and agentic GenAI reasoning on synthetic claims data.
+
+## Deliverables
+
+| Deliverable | Link |
+|-------------|------|
+| **POC Demo Code** | This repository |
+| **Video Recording** | [![Watch Demo](https://img.youtube.com/vi/8l6WAxyj4Kc/0.jpg)](https://youtu.be/8l6WAxyj4Kc) |
+| **Slide Presentation** | [`Cogniviti_AI-Driven_Payment_Integrity.pptx`](./Cogniviti_AI-Driven_Payment_Integrity.pptx) |
+| **Written Report** | [`Cotiviti_FWA_Report.docx`](./Cotiviti_FWA_Report.docx) |
 
 ## Quick Start
 
