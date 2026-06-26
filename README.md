@@ -1,5 +1,9 @@
 # Intern Submission — Cogniviti
 
+<p align="center">
+  <img src="Gemini_Generated_Image_pfzfebpfzfebpfzf.png" alt="Cogniviti Logo" width="300"/>
+</p>
+
 **Topic:** Clinical Decision Making and Pattern Recognition in Health Care: Chain Reasoning, Agentic Generative AI, Classification, Prediction, Inference, Clustering, & Time-Series Anomaly Detection for Treatment, Payment, & Operations (TPO)
 
 Hybrid ML + GenAI pipeline for healthcare claims fraud, waste, and abuse detection — a hackathon POC demonstrating classification, anomaly detection, and agentic GenAI reasoning on synthetic claims data.
